@@ -1,25 +1,136 @@
 ---
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
+title: "Course Project 1"
+author: "Manuel Chacón"
+date: "28 de mayo de 2019"
+output:
+ html_document:
+  keep_md: true
 ---
+```{r}
+library(dplyr)
+library(ggplot2)
+```
+
+
 
 
 ## Loading and preprocessing the data
+```{r}
+data <- read.csv('activity.csv')
+```
 
 
 
 ## What is mean total number of steps taken per day?
 
+we create  data_step, It's the number steps per day.
+```{r}
+data_step<-data %>% 
+          group_by(date) %>% 
+          summarize(steps_day=sum(steps), steps_mean = mean(steps), steps_median = median(steps,na.rm = TRUE))
 
+```
+
+```{r}
+ggplot(data_step, aes(steps_day))+
+  geom_histogram(color = 'red')+ ggtitle('Steps per days')+ylab('Frecuency')+xlab('Number of steps')
+```
+
+```{r}
+data_mean <- data_step %>% 
+  select(date, steps_mean, steps_median)
+```
 
 ## What is the average daily activity pattern?
+```{r}
+data_interval<-data %>% 
+  group_by(interval) %>% 
+  summarize(interval_mean = mean(steps, na.rm = TRUE))
+```
 
 
+```{r}
+ggplot(data_interval, aes(interval, interval_mean))+geom_line(color='blue')+
+  ggtitle('Average per interval')+xlab('Interval')+ylab('Average per interval')
+```
+```{r}
+data_interval %>% 
+  select(interval, interval_mean) %>% 
+  filter(interval_mean == max(interval_mean))
+```
 
 ## Imputing missing values
+1- We calculate total number of missing value
+```{r}
+data %>%
+  summarize(steps_na=sum(is.na(steps)),
+            date_na=sum(is.na(date)), 
+            interval_na=sum(is.na(interval)))
+```
+
+2.-We create a new data that is equal to the original but with the missing data filled in.
+```{r}
+data_copy<-data
+
+data_copy$steps[is.na(data_copy$steps)] <- mean(na.omit(data_copy$steps))
+```
+3.-Make a histogrom of the total number of steps taken each day and calculate and report the mean and median total number of steps taken per day.
+```{r}
+par(mfrow=c(1,2))
+data %>%
+  group_by(date) %>% 
+  summarize(total_steps = sum(steps)) %>% 
+  ggplot(aes(total_steps))+
+  geom_histogram(color = 'red') +
+  ggtitle('With NA')+
+  xlab('Number of steps')+
+  ylab('Frecuency')
+
+data_copy %>%
+  group_by(date) %>% 
+  summarize(total_steps = sum(steps)) %>% 
+  ggplot(aes(total_steps))+
+  geom_histogram(color = 'blue')+
+  ggtitle('Without NA')+
+  xlab('Number of steps')+
+  ylab('Frecuency')
+```
+```{r warning=FALSE}
+data_copy %>% 
+  group_by(date) %>% 
+  summarize(steps_day=sum(steps), steps_mean = mean(steps), steps_median = median(steps))
+```
 
 
 
 ## Are there differences in activity patterns between weekdays and weekends?
+
+1.-Create a new factor variable in the dataset with two levels - "weekday" and "weekend" indicating whether a given date is a weekday or weekend day.
+
+```{r}
+data_week<-data_copy %>% 
+  mutate(Weekday = ifelse(weekdays(as.Date(date)) %in% c("lunes","martes",
+                                                         'miercoles','jueves','viernes')
+                          ,"weekday",'weekend' ) )
+```
+
+2.-Make a panel plot containing a time series plot of the 5-minute interval(x-axis) and the average of steps taken, averaged across all weekday days or weekend days(y-axis).
+
+```{r}
+data_weekday <-data_week %>% 
+  filter(Weekday == 'weekday') %>% 
+  group_by(interval) %>% 
+  summarize(interval_step = mean(steps))
+
+data_weekend <-data_week %>% 
+  filter(Weekday == 'weekend') %>% 
+  group_by(interval) %>% 
+  summarize(interval_step = mean(steps))
+
+
+par(mfrow=c(1,2))
+ggplot(data_weekday, aes(interval, interval_step))+geom_line()+ggtitle('Average per interval on weekday')+xlab('Interval')+ylab('Average per interval')
+
+ggplot(data_weekend, aes(interval, interval_step))+geom_line()+ggtitle('Average per interval on weekend')+xlab('Interval')+ylab('Average per interval')
+```
+
